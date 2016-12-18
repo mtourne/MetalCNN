@@ -186,5 +186,19 @@ class YoloTinyNet{
                                        padding: false,
                                        strideXY: (1, 1))
         
+        // XX (mtourne) Things to think about 
+        // * what is the encoding for YOLO Net ?
+        
+        // Adjust the RGB values of each pixel to be in the range -128...127
+        // by subtracting the "mean pixel". If the input texture is RGB, this
+        // also swaps the R and B values because the model expects BGR pixels.
+        // As far as I can tell there is no MPS shader that can do these things,
+        // so we use a custom compute kernel.
+        
+        // Now we take the output from our custom shader and pass it through the
+        // layers of the neural network. For each layer we use a new "temporary"
+        // MPSImage to hold the results.
+        // https://github.com/hollance/VGGNet-Metal/blob/master/VGGNet-iOS/VGGNet/VGGNet.swift#L279
+        
     }
 }

@@ -1,3 +1,27 @@
+
+# Weights for Yolo
+
+Tools :
+available
+* darknet to tensorflow
+* tensorflow to MPS
+
+Darknet ?
+
+
+Tensorflow [2]
+
+"The ordering of convolution weight values is often tricky to deal with when converting between different frameworks. In TensorFlow, the filter weights for the Conv2D operation are stored on the second input, and are expected to be in the order [filter_height, filter_width, input_depth, output_depth], where filter_count increasing by one means moving to an adjacent value in memory."
+
+Apple MPS-CNNConvolution [3]
+
+"Each entry is a float value. The number of entries is equal to inputFeatureChannels * outputFeatureChannels * kernelHeight * kernelWidth."
+
+
+[2] https://www.tensorflow.org/versions/r0.10/how_tos/tool_developers/
+[3] https://developer.apple.com/reference/metalperformanceshaders/mpscnnconvolution/1648861-init
+
+
 # Metal Image Recognition: Performing Image Recognition with Inception_v3 Network using Metal Performance Shaders Convolutional Neural Network routines
 
 This sample demonstrates how to perform runtime inference for image recognition using a Convolutional Neural Network (CNN) built with Metal Performance Shaders. This sample is a port of the TensorFlow-trained Inception_v3 network, which was trained offline using the ImageNet dataset. The CNN creates, encodes, and submits different layers to the GPU. It then performs image recognition using trained parameters (weights and biases) that have been acquired and saved from the pre-trained network.
