@@ -21,7 +21,6 @@ class YoloTinyNet{
 
     // pre-processing layers and an MPSTemporaryImage for it
     var lanczos : MPSImageLanczosScale!
-    var scale : MPSCNNNeuronLinear!
     var preImage : MPSTemporaryImage!
 
     // MPSImages are declared we need srcImage and final softMax output as MPSImages so we can read/write to underlying textures
@@ -83,8 +82,6 @@ class YoloTinyNet{
 
         // we will resize the input image the input size of yolo
         lanczos = MPSImageLanczosScale(device: device)
-        // we will scale pixel values to [-1,1]
-        scale = MPSCNNNeuronLinear(device: device!, a: Float(2), b: Float(-1))
 
         // initialize activation layers
         // "This filter is called leaky
@@ -95,7 +92,7 @@ class YoloTinyNet{
         softmax = MPSCNNSoftMax(device: device!)
 
         // Initialize MPSImage from descriptors
-        srcImage    = MPSImage(device: device!, imageDescriptor: sid)
+        srcImage = MPSImage(device: device!, imageDescriptor: input_id)
 
         // define convolution, pooling and fullyConnected layers and
         // initialize them with proper weights this will occur as a 1
@@ -235,22 +232,125 @@ class YoloTinyNet{
     // encode pre-processing layers to change input image to a size of 416*416*3
     lanczos.encode (commandBuffer: commandBuffer, sourceTexture: sourceTexture!, destinationTexture: preImage.texture)
 
-    // with values in range [-1,1]
-
-    // XX (mtourne) Things to think about
-    // * what is the encoding for YOLO Net ?
-
-    // Adjust the RGB values of each pixel to be in the range -128...127
-    // by subtracting the "mean pixel". If the input texture is RGB, this
-    // also swaps the R and B values because the model expects BGR pixels.
-    // As far as I can tell there is no MPS shader that can do these things,
-    // so we use a custom compute kernel.
+    // pixel value range is [0,1], and rgb
+    // just like darknet model expects (hopefully)
 
     // Now we take the output from our custom shader and pass it through the
     // layers of the neural network. For each layer we use a new "temporary"
     // MPSImage to hold the results.
     // https://github.com/hollance/VGGNet-Metal/blob/master/VGGNet-iOS/VGGNet/VGGNet.swift#L279
-    scale.encode(commandBuffer: commandBuffer, sourceImage: preImage, destinationImage: srcImage)
 
+
+    let conv0_img = MPSTemporaryImage(commandBuffer: commandBuffer,
+                                      imageDescriptor: conv0_id)
+    conv0.encode(commandBuffer: commandBuffer,
+                 sourceImage: preImage,
+                 destinationImage: conv0_img)
+
+
+    let pool1_img = MPSTemporaryImage(commandBuffer: commandBuffer,
+                                      imageDescriptor: pool1_id)
+    pool1.encode(commandBuffer: commandBuffer,
+                 sourceImage: conv0_img,
+                 destinationImage: pool1_img)
+
+
+    let conv2_img = MPSTemporaryImage(commandBuffer: commandBuffer,
+                                      imageDescriptor: conv2_id)
+
+    conv2.encode(commandBuffer: commandBuffer,
+                 sourceImage: pool1_img,
+                 destinationImage: conv2_img)
+
+
+    let pool3_img = MPSTemporaryImage(commandBuffer: commandBuffer,
+                                      imageDescriptor: pool3_id)
+    pool1.encode(commandBuffer: commandBuffer,
+                 sourceImage: conv2_img,
+                 destinationImage: pool3_img)
+
+
+    let conv4_img = MPSTemporaryImage(commandBuffer: commandBuffer,
+                                      imageDescriptor: conv4_id)
+
+    conv4.encode(commandBuffer: commandBuffer,
+                 sourceImage: pool3_img,
+                 destinationImage: conv4_img)
+
+
+    let pool5_img = MPSTemporaryImage(commandBuffer: commandBuffer,
+                                      imageDescriptor: pool5_id)
+    pool5.encode(commandBuffer: commandBuffer,
+                 sourceImage: conv4_img,
+                 destinationImage: pool5_img)
+
+
+    let conv6_img = MPSTemporaryImage(commandBuffer: commandBuffer,
+                                      imageDescriptor: conv6_id)
+
+    conv6.encode(commandBuffer: commandBuffer,
+                 sourceImage: pool5_img,
+                 destinationImage: conv6_img)
+
+
+    let pool7_img = MPSTemporaryImage(commandBuffer: commandBuffer,
+                                      imageDescriptor: pool7_id)
+    pool7.encode(commandBuffer: commandBuffer,
+                 sourceImage: conv6_img,
+                 destinationImage: pool7_img)
+
+
+    let conv8_img = MPSTemporaryImage(commandBuffer: commandBuffer,
+                                      imageDescriptor: conv8_id)
+
+    conv8.encode(commandBuffer: commandBuffer,
+                 sourceImage: pool7_img,
+                 destinationImage: conv8_img)
+
+    let pool9_img = MPSTemporaryImage(commandBuffer: commandBuffer,
+                                      imageDescriptor: pool9_id)
+    pool9.encode(commandBuffer: commandBuffer,
+                 sourceImage: conv8_img,
+                 destinationImage: pool9_img)
+
+
+    let conv10_img = MPSTemporaryImage(commandBuffer: commandBuffer,
+                                      imageDescriptor: conv10_id)
+
+    conv10.encode(commandBuffer: commandBuffer,
+                 sourceImage: pool9_img,
+                  destinationImage: conv10_img)
+
+    let pool11_img = MPSTemporaryImage(commandBuffer: commandBuffer,
+                                      imageDescriptor: pool11_id)
+    pool11.encode(commandBuffer: commandBuffer,
+                 sourceImage: conv8_img,
+                 destinationImage: pool11_img)
+
+
+    let conv12_img = MPSTemporaryImage(commandBuffer: commandBuffer,
+                                      imageDescriptor: conv12_id)
+
+    conv12.encode(commandBuffer: commandBuffer,
+                 sourceImage: pool11_img,
+                  destinationImage: conv12_img)
+
+
+    let conv13_img = MPSTemporaryImage(commandBuffer: commandBuffer,
+                                       imageDescriptor: conv13_id)
+
+    conv13.encode(commandBuffer: commandBuffer,
+                  sourceImage: conv12_img,
+                  destinationImage: conv13_img)
+
+    let conv14_img = MPSTemporaryImage(commandBuffer: commandBuffer,
+                                       imageDescriptor: conv14_id)
+
+    conv14.encode(commandBuffer: commandBuffer,
+                  sourceImage: conv13_img,
+                  destinationImage: conv14_img)
+
+
+    // TODO (mt) : now figure out how to do a box prediction !
   }
 }
