@@ -6,20 +6,53 @@ available
 * darknet to tensorflow
 * tensorflow to MPS
 
-Darknet ?
+## Darknet
+
+Extraction code from darknet to Tensorflow written sequentially
+
+```
+	def conv_layer(self,idx,inputs,filters,size,stride):
+		channels = inputs.get_shape()[3]
+		f_w = open(self.weights_dir + str(idx) + '_conv_weights.txt','r')
+		l_w = np.array(f_w.readlines()).astype('float32')
+		f*w.close()
+		w = np.zeros((size,size,channels,filters),dtype='float32')
+		ci = int(channels)
+		filter_step = ci*size*size
+		channel_step = size*size
+		for i in range(filters):
+			for j in range(ci):
+				for k in range(size):
+					for l in range(size):
+						w[k,l,j,i] = l_w[i*filter_step + j*channel_step + k*size + l]
+```
+k is filter_height
+l is filter_width
+j is input_depth
+i is output_depth
 
 
-Tensorflow [2]
+## Tensorflow
 
-"The ordering of convolution weight values is often tricky to deal with when converting between different frameworks. In TensorFlow, the filter weights for the Conv2D operation are stored on the second input, and are expected to be in the order [filter_height, filter_width, input_depth, output_depth], where filter_count increasing by one means moving to an adjacent value in memory."
+"The ordering of convolution weight values is often tricky to deal
+with when converting between different frameworks. In TensorFlow, the
+filter weights for the Conv2D operation are stored on the second
+input, and are expected to be in the order
+[filter_height, filter_width, input_depth, output_depth], where
+filter_count increasing by one means moving to an adjacent value in
+memory." [2]
 
-Apple MPS-CNNConvolution [3]
 
-"Each entry is a float value. The number of entries is equal to inputFeatureChannels * outputFeatureChannels * kernelHeight * kernelWidth."
+## Apple MPS-CNNConvolution
+
+"Each entry is a float value. The number of entries is equal to
+inputFeatureChannels * outputFeatureChannels * kernelHeight *
+kernelWidth." [3]
 
 
 [2] https://www.tensorflow.org/versions/r0.10/how_tos/tool_developers/
 [3] https://developer.apple.com/reference/metalperformanceshaders/mpscnnconvolution/1648861-init
+
 
 
 # Metal Image Recognition: Performing Image Recognition with Inception_v3 Network using Metal Performance Shaders Convolutional Neural Network routines
