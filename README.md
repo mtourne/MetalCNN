@@ -45,9 +45,10 @@ memory." [2]
 
 ## Apple MPS-CNNConvolution
 
-"Each entry is a float value. The number of entries is equal to
-inputFeatureChannels * outputFeatureChannels * kernelHeight *
-kernelWidth." [3]
+"Each entry is a float value. The number of entries is equal to inputFeatureChannels * outputFeatureChannels * kernelHeight * kernelWidth.
+
+The layout of the filter weight is arranged so that it can be reinterpreted as a 4D tensor (array) weight[outputChannels][kernelHeight][kernelWidth][inputChannels/groups]
+" [3]
 
 
 [2] https://www.tensorflow.org/versions/r0.10/how_tos/tool_developers/

@@ -30,51 +30,70 @@ class YoloTinyNet{
     // standard neuron and softmax layers are declared
     let alpha : Float = 0.1                 // leaky relu constant
     var relu : MPSCNNNeuronReLU
-
     var softmax : MPSCNNSoftMax
 
     // convolution and fully connected layers
     let conv0, conv2, conv4, conv6, conv8, conv10, conv12, conv13, conv14 : SlimMPSCNNConvolution
     var pool1, pool3, pool5, pool7, pool9, pool11 : MPSCNNPoolingMax
 
+    
+   
 
     /* These MPSImage descriptors tell the network about the sizes of the data
        volumes that flow between the layers. */
     let input_id = MPSImageDescriptor(channelFormat: textureFormat,
                                       width: 416, height: 416, featureChannels: 3)
-    let conv0_id  = MPSImageDescriptor(channelFormat: .float16,
-                                       width: 416, height: 416, featureChannels: 16)
-    let pool1_id  = MPSImageDescriptor(channelFormat: .float16,
-                                       width: 208, height: 208, featureChannels: 16)
-    let conv2_id  = MPSImageDescriptor(channelFormat: .float16,
-                                       width: 208, height: 208, featureChannels: 32)
-    let pool3_id  = MPSImageDescriptor(channelFormat: .float16,
-                                       width:  104, height:  104, featureChannels: 32)
-    let conv4_id  = MPSImageDescriptor(channelFormat: .float16,
-                                       width:  104, height:  104, featureChannels: 64)
-    let pool5_id  = MPSImageDescriptor(channelFormat: .float16,
-                                       width:  52, height:  52, featureChannels: 64)
-    let conv6_id  = MPSImageDescriptor(channelFormat: .float16,
-                                       width:  52, height:  52, featureChannels: 128)
-    let pool7_id  = MPSImageDescriptor(channelFormat: .float16,
-                                       width:  26, height:  26, featureChannels: 128)
-    let conv8_id  = MPSImageDescriptor(channelFormat: .float16,
-                                       width:  26, height:  26, featureChannels: 256)
+    let conv0_id = MPSImageDescriptor(channelFormat: .float16,
+                                      width: 416, height: 416, featureChannels: 16)
+    let pool1_id = MPSImageDescriptor(channelFormat: .float16,
+                                      width: 208, height: 208, featureChannels: 16)
+    let conv2_id = MPSImageDescriptor(channelFormat: .float16,
+                                      width: 208, height: 208, featureChannels: 32)
+    let pool3_id = MPSImageDescriptor(channelFormat: .float16,
+                                      width:  104, height:  104, featureChannels: 32)
+    let conv4_id = MPSImageDescriptor(channelFormat: .float16,
+                                      width:  104, height:  104, featureChannels: 64)
+    let pool5_id = MPSImageDescriptor(channelFormat: .float16,
+                                      width:  52, height:  52, featureChannels: 64)
+    let conv6_id = MPSImageDescriptor(channelFormat: .float16,
+                                      width:  52, height:  52, featureChannels: 128)
+    let pool7_id = MPSImageDescriptor(channelFormat: .float16,
+                                      width:  26, height:  26, featureChannels: 128)
+    let conv8_id = MPSImageDescriptor(channelFormat: .float16,
+                                      width:  26, height:  26, featureChannels: 256)
     let pool9_id = MPSImageDescriptor(channelFormat: .float16,
                                       width:  13, height:  13, featureChannels: 256)
-    let conv10_id  = MPSImageDescriptor(channelFormat: .float16,
-                                        width:  13, height:  13, featureChannels: 512)
+    let conv10_id = MPSImageDescriptor(channelFormat: .float16,
+                                       width:  13, height:  13, featureChannels: 512)
     let pool11_id = MPSImageDescriptor(channelFormat: .float16,
                                        width:  13, height:  13, featureChannels: 512)
-    let conv12_id  = MPSImageDescriptor(channelFormat: .float16,
-                                        width:  13, height:  13, featureChannels: 1024)
-    let conv13_id  = MPSImageDescriptor(channelFormat: .float16,
-                                        width:  13, height:  13, featureChannels: 1024)
-    let conv14_id  = MPSImageDescriptor(channelFormat: .float16,
-                                        width:  13, height:  13, featureChannels: 425)
+    let conv12_id = MPSImageDescriptor(channelFormat: .float16,
+                                       width:  13, height:  13, featureChannels: 1024)
+    let conv13_id = MPSImageDescriptor(channelFormat: .float16,
+                                       width:  13, height:  13, featureChannels: 1024)
+    let conv14_id = MPSImageDescriptor(channelFormat: .float16,
+                                       width:  13, height:  13,
+                                       featureChannels: 425)
+    
+    let output15_id = MPSImageDescriptor(channelFormat: .float16,
+                                         width:  13, height:  13,
+                                         featureChannels: 10)
 
+    let pipelineSigmoid: MTLComputePipelineState
+    
+    let num, classes, coords, size_pred, size_output : Int
 
     init(withCommandQueue inputCommandQueue : MTLCommandQueue){
+        num = 5
+        classes = 80
+        coords = 4
+        size_pred = (classes + coords + 1)
+        // 5 preditions per cell, each is 80 classes, 4 coords, 1 confidence
+        //let features_end = num * size_pred
+        
+        // output is just n * (predicition + best class from softmax)
+        size_output = 2
+        //let features_output = num * size_output
 
         // keep an instance of device and commandQueue around for use
         device = inputCommandQueue.device
@@ -203,17 +222,33 @@ class YoloTinyNet{
                                        padding: false,
                                        strideXY: (1, 1))
 
-        // last conv as a fully connected layer (1,1) kernel
-        conv14 = SlimMPSCNNConvolution(kernelWidth: 1,
-                                       kernelHeight: 1,
-                                       inputFeatureChannels: 1024,
-                                       outputFeatureChannels: 425,
-                                       neuronFilter: nil,
-                                       device: device,
-                                       kernelParamsBinaryName: "conv_14" ,
-                                       padding: false,
-                                       strideXY: (1, 1))
+      // idea ? cut conv14 into
+      //   0-3 * n => coords nothing
+      //   4   * n => pred no-op conv + sigmoid (one map)
+      //   5-85* n => softmax, one per n
 
+      // last conv as a fully connected layer (1,1) kernel
+       conv14 = SlimMPSCNNConvolution(kernelWidth: 1,
+                                        kernelHeight: 1,
+                                        inputFeatureChannels: 1024,
+                                        outputFeatureChannels: 425,
+                                        // XX neuron filter
+                                        // should be linear activation
+                                        neuronFilter: nil,
+                                        device: device,
+                                        kernelParamsBinaryName: "conv_14" ,
+                                        padding: false,
+                                      strideXY: (1, 1))
+
+      do {
+        let library = device.newDefaultLibrary()!
+        let sigmoid = library.makeFunction(name: "sigmoid")
+        pipelineSigmoid = try device.makeComputePipelineState(
+          function: sigmoid!)
+
+      } catch {
+        fatalError("Error initializing compute pipeline")
+      }
     }
 
   // make an inference
@@ -222,7 +257,7 @@ class YoloTinyNet{
     MPSTemporaryImage.prefetchStorage(with: commandBuffer, imageDescriptorList: [
       input_id, conv0_id, pool1_id, conv2_id, pool3_id, conv4_id, pool5_id,
       conv6_id, pool7_id, conv8_id, pool9_id, conv10_id, pool11_id,
-      conv12_id, conv13_id, conv14_id
+      conv12_id, conv13_id, conv14_id, output15_id
     ])
 
     // we use preImage to hold preprocesing intermediate results
@@ -324,7 +359,7 @@ class YoloTinyNet{
     let pool11_img = MPSTemporaryImage(commandBuffer: commandBuffer,
                                       imageDescriptor: pool11_id)
     pool11.encode(commandBuffer: commandBuffer,
-                 sourceImage: conv8_img,
+                 sourceImage: conv10_img,
                  destinationImage: pool11_img)
 
 
@@ -350,7 +385,34 @@ class YoloTinyNet{
                   sourceImage: conv13_img,
                   destinationImage: conv14_img)
 
+    let output15_img = MPSTemporaryImage(commandBuffer: commandBuffer,
+                                         imageDescriptor: output15_id)
 
-    // TODO (mt) : now figure out how to do a box prediction !
+    // sigmoid part of the region layer
+    let encoder = commandBuffer.makeComputeCommandEncoder()
+    encoder.setComputePipelineState(pipelineSigmoid)
+    for index in 0...(num-1) {
+      // layer where the confidence index is
+      let i = size_pred * index + 4
+      // where it will be post sigmoid
+      let j = size_output * index
+      encoder.setTexture(conv14_img.texture, at: i)
+      encoder.setTexture(output15_img.texture, at: j)
+      // XX (mtourne): don't really know what any of this does
+      let threadsPerGroups = MTLSizeMake(8, 8, 1)
+      let threadGroups = MTLSizeMake(
+        output15_img.texture.width / threadsPerGroups.width,
+        output15_img.texture.height / threadsPerGroups.height, 1)
+     
+       // ERR 
+       // Metal-85.83/ToolsLayers/Debug/MTLDebugComputeCommandEncoder.mm:631: failed assertion `component 1: 8 must be <= 1 for id [[ thread_position_in_grid ]]'
+      encoder.dispatchThreadgroups(threadGroups,
+                                   threadsPerThreadgroup: threadsPerGroups)
+      encoder.endEncoding()
+
+      conv14_img.readCount -= 1    // see MPSTemporaryImage docs why this is needed
+                                   // XX (mtourne): no idea
+    }
+
   }
 }

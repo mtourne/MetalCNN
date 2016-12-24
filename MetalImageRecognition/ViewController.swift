@@ -21,7 +21,8 @@ class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavig
     @IBOutlet weak var predictView: UIImageView!
     
     // some properties used to control the app and store appropriate values
-    var Net: Inception3Net? = nil
+    //var Net: Inception3Net? = nil
+    var Net: YoloTinyNet? = nil
     var device: MTLDevice!
     var commandQueue: MTLCommandQueue!
     var imageNum = 0
@@ -53,7 +54,7 @@ class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavig
         textureLoader = MTKTextureLoader(device: device!)
         
         // Load the appropriate Network
-        Net = Inception3Net(withCommandQueue: commandQueue)
+        Net = YoloTinyNet(withCommandQueue: commandQueue)
         
         // we use this CIContext as one of the steps to get a MTLTexture
         ciContext = CIContext.init(mtlDevice: device)
@@ -247,9 +248,9 @@ class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavig
             commandBuffer.waitUntilCompleted()
 
             // display top-5 predictions for what the object should be labelled
-            let label = Net!.getLabel()
-            predictLabel.text = label
-            predictLabel.isHidden = false
+            //let label = Net!.getLabel()
+            //predictLabel.text = label
+            //predictLabel.isHidden = false
         }
         
     }
